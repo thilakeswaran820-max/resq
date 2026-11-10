@@ -1,0 +1,1614 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ResQ-360 | Emergency Response & Disaster Management Platform (Code Clash 2026)</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        navy: {
+                            850: '#0f172a',
+                            900: '#090d16',
+                            950: '#04060b'
+                        },
+                        control: {
+                            dark: '#111827',
+                            card: '#1f2937',
+                            border: '#374151'
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <!-- FontAwesome for Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Google Fonts Inter -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+        /* Custom scrollbar for control room aesthetic */
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: #090d16; }
+        ::-webkit-scrollbar-thumb { background: #374151; border-radius: 3px; }
+        ::-webkit-scrollbar-thumb:hover { background: #4b5563; }
+        .pulse-critical {
+            animation: pulseCrit 2s infinite;
+        }
+        @keyframes pulseCrit {
+            0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7); }
+            70% { box-shadow: 0 0 0 12px rgba(239, 68, 68, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
+        }
+    </style>
+</head>
+<body class="bg-navy-900 text-slate-100 min-h-screen flex flex-col overflow-x-hidden">
+
+    <!-- Notification Toast Container -->
+    <div id="toast-container" class="fixed top-5 right-5 z-50 flex flex-col space-y-3 pointer-events-none"></div>
+
+    <!-- Top Control Bar -->
+    <header class="bg-navy-950 border-b border-slate-800 h-16 flex items-center justify-between px-6 sticky top-0 z-40 shadow-md">
+        <div class="flex items-center space-x-3">
+            <button id="sidebar-toggle" class="md:hidden text-slate-400 hover:text-white focus:outline-none">
+                <i class="fa-solid fa-bars text-xl"></i>
+            </button>
+            <div class="flex items-center space-x-2">
+                <div class="w-9 h-9 rounded-lg bg-red-600 flex items-center justify-center text-white font-bold shadow-lg shadow-red-900/50">
+                    <i class="fa-solid fa-shield-halved text-lg"></i>
+                </div>
+                <div>
+                    <span class="text-lg font-bold tracking-wider text-white">RESQ<span class="text-red-500">-360</span></span>
+                    <span class="text-xs block text-slate-400 font-medium">Code Clash 2026 Control Room</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="flex items-center space-x-4">
+            <div class="hidden sm:flex items-center bg-slate-800/80 px-3 py-1.5 rounded-full border border-slate-700 text-xs font-medium text-slate-300">
+                <span class="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-ping mr-2"></span>
+                <span>System Status: <strong class="text-emerald-400">ACTIVE</strong></span>
+            </div>
+            <button onclick="openReportModal()" class="bg-red-600 hover:bg-red-700 text-white font-semibold px-4 py-2 rounded-lg text-sm transition shadow-lg shadow-red-600/30 flex items-center space-x-2">
+                <i class="fa-solid fa-triangle-exclamation"></i>
+                <span>Report Emergency</span>
+            </button>
+            <button onclick="resetDemoData()" title="Reset to Sample Data" class="bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white p-2 rounded-lg text-sm border border-slate-700 transition">
+                <i class="fa-solid fa-rotate-right"></i>
+            </button>
+        </div>
+    </header>
+
+    <div class="flex flex-1 relative">
+        <!-- Sidebar Navigation -->
+        <aside id="sidebar" class="bg-navy-950 border-r border-slate-800 w-64 flex-shrink-0 flex flex-col transition-all duration-300 z-30 fixed md:static inset-y-0 left-0 -translate-x-full md:translate-x-0 pt-16 md:pt-0">
+            <div class="p-4 border-b border-slate-800/60 hidden md:block">
+                <p class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Navigation Menu</p>
+            </div>
+            <nav class="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
+                <a href="#overview" onclick="switchTab('overview')" class="nav-link flex items-center space-x-3 px-3 py-3 rounded-lg text-sm font-medium transition text-slate-300 hover:bg-slate-800 hover:text-white active-tab" data-tab="overview">
+                    <i class="fa-solid fa-chart-pie w-5 text-center text-blue-400"></i>
+                    <span>Overview Dashboard</span>
+                </a>
+                <a href="#report" onclick="switchTab('report')" class="nav-link flex items-center space-x-3 px-3 py-3 rounded-lg text-sm font-medium transition text-slate-300 hover:bg-slate-800 hover:text-white" data-tab="report">
+                    <i class="fa-solid fa-file-circle-plus w-5 text-center text-red-400"></i>
+                    <span>Report Emergency</span>
+                </a>
+                <a href="#incidents" onclick="switchTab('incidents')" class="nav-link flex items-center space-x-3 px-3 py-3 rounded-lg text-sm font-medium transition text-slate-300 hover:bg-slate-800 hover:text-white" data-tab="incidents">
+                    <i class="fa-solid fa-list-check w-5 text-center text-amber-400"></i>
+                    <span>All Incidents & Admin</span>
+                </a>
+                <a href="#priority" onclick="switchTab('priority')" class="nav-link flex items-center space-x-3 px-3 py-3 rounded-lg text-sm font-medium transition text-slate-300 hover:bg-slate-800 hover:text-white" data-tab="priority">
+                    <i class="fa-solid fa-arrow-up-wide-short w-5 text-center text-purple-400"></i>
+                    <span>Priority Management</span>
+                </a>
+                <a href="#teams" onclick="switchTab('teams')" class="nav-link flex items-center space-x-3 px-3 py-3 rounded-lg text-sm font-medium transition text-slate-300 hover:bg-slate-800 hover:text-white" data-tab="teams">
+                    <i class="fa-solid fa-users-gear w-5 text-center text-emerald-400"></i>
+                    <span>Response Teams</span>
+                </a>
+                <a href="#assignment" onclick="switchTab('assignment')" class="nav-link flex items-center space-x-3 px-3 py-3 rounded-lg text-sm font-medium transition text-slate-300 hover:bg-slate-800 hover:text-white" data-tab="assignment">
+                    <i class="fa-solid fa-map-location-dot w-5 text-center text-cyan-400"></i>
+                    <span>Team Assignment & Map</span>
+                </a>
+                <a href="#analytics" onclick="switchTab('analytics')" class="nav-link flex items-center space-x-3 px-3 py-3 rounded-lg text-sm font-medium transition text-slate-300 hover:bg-slate-800 hover:text-white" data-tab="analytics">
+                    <i class="fa-solid fa-chart-line w-5 text-center text-indigo-400"></i>
+                    <span>Advanced Analytics</span>
+                </a>
+            </nav>
+            <div class="p-4 border-t border-slate-800/80 bg-navy-900/50">
+                <div class="flex items-center justify-between text-xs text-slate-400">
+                    <span>Hackathon Version</span>
+                    <span class="text-red-400 font-bold">v2.6 Final</span>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Main Content Area -->
+        <main class="flex-1 p-4 md:p-8 overflow-y-auto max-w-full">
+
+            <!-- TAB 1: OVERVIEW DASHBOARD -->
+            <section id="tab-overview" class="tab-content space-y-6">
+                <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                    <div>
+                        <h1 class="text-2xl font-bold text-white">Emergency Control Overview</h1>
+                        <p class="text-sm text-slate-400">Real-time disaster management telemetry and incident status summary.</p>
+                    </div>
+                    <div class="flex items-center space-x-3">
+                        <span id="current-time-display" class="bg-slate-800 border border-slate-700 px-3 py-1.5 rounded-lg text-xs text-slate-300 font-mono"></span>
+                    </div>
+                </div>
+
+                <!-- Stats Grid -->
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                    <div class="bg-slate-800/60 border border-slate-700/80 rounded-xl p-4 shadow-sm flex items-center justify-between">
+                        <div>
+                            <p class="text-xs font-semibold text-slate-400 uppercase">Total Incidents</p>
+                            <h3 id="stat-total-incidents" class="text-3xl font-bold text-white mt-1">0</h3>
+                            <span class="text-xs text-blue-400 mt-1 block"><i class="fa-solid fa-arrow-trend-up"></i> Active monitoring</span>
+                        </div>
+                        <div class="w-12 h-12 rounded-xl bg-blue-500/10 border border-blue-500/20 flex items-center justify-center text-blue-400 text-xl">
+                            <i class="fa-solid fa-clipboard-list"></i>
+                        </div>
+                    </div>
+
+                    <div class="bg-slate-800/60 border border-slate-700/80 rounded-xl p-4 shadow-sm flex items-center justify-between">
+                        <div>
+                            <p class="text-xs font-semibold text-slate-400 uppercase">Critical Emergencies</p>
+                            <h3 id="stat-critical-incidents" class="text-3xl font-bold text-red-500 mt-1">0</h3>
+                            <span class="text-xs text-red-400 mt-1 block"><i class="fa-solid fa-triangle-exclamation"></i> Immediate action</span>
+                        </div>
+                        <div class="w-12 h-12 rounded-xl bg-red-500/10 border border-red-500/20 flex items-center justify-center text-red-500 text-xl">
+                            <i class="fa-solid fa-fire-flame-curved"></i>
+                        </div>
+                    </div>
+
+                    <div class="bg-slate-800/60 border border-slate-700/80 rounded-xl p-4 shadow-sm flex items-center justify-between">
+                        <div>
+                            <p class="text-xs font-semibold text-slate-400 uppercase">Available Teams</p>
+                            <h3 id="stat-available-teams" class="text-3xl font-bold text-emerald-400 mt-1">0</h3>
+                            <span class="text-xs text-emerald-400 mt-1 block"><i class="fa-solid fa-user-check"></i> Ready for dispatch</span>
+                        </div>
+                        <div class="w-12 h-12 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400 text-xl">
+                            <i class="fa-solid fa-shield-heart"></i>
+                        </div>
+                    </div>
+
+                    <div class="bg-slate-800/60 border border-slate-700/80 rounded-xl p-4 shadow-sm flex items-center justify-between">
+                        <div>
+                            <p class="text-xs font-semibold text-slate-400 uppercase">Resolved Incidents</p>
+                            <h3 id="stat-resolved-incidents" class="text-3xl font-bold text-cyan-400 mt-1">0</h3>
+                            <span class="text-xs text-cyan-400 mt-1 block"><i class="fa-solid fa-circle-check"></i> Successfully handled</span>
+                        </div>
+                        <div class="w-12 h-12 rounded-xl bg-cyan-500/10 border border-cyan-500/20 flex items-center justify-center text-cyan-400 text-xl">
+                            <i class="fa-solid fa-check-double"></i>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Mini Quick Analytics & Critical Alerts Feed -->
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    <div class="lg:col-span-2 bg-slate-800/40 border border-slate-700/80 rounded-2xl p-6">
+                        <div class="flex items-center justify-between mb-4">
+                            <h2 class="text-lg font-bold text-white flex items-center space-x-2">
+                                <i class="fa-solid fa-fire text-red-500"></i>
+                                <span>High Priority & Critical Alerts</span>
+                            </h2>
+                            <button onclick="switchTab('incidents')" class="text-xs text-blue-400 hover:underline">View All</button>
+                        </div>
+                        <div id="overview-critical-list" class="space-y-3">
+                            <!-- Populated dynamically -->
+                        </div>
+                    </div>
+
+                    <div class="bg-slate-800/40 border border-slate-700/80 rounded-2xl p-6 flex flex-col">
+                        <h2 class="text-lg font-bold text-white mb-4 flex items-center space-x-2">
+                            <i class="fa-solid fa-chart-pie text-purple-400"></i>
+                            <span>Category Breakdown</span>
+                        </h2>
+                        <div class="flex-1 flex items-center justify-center relative min-h-[220px]">
+                            <canvas id="overview-category-chart"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- TAB 2: REPORT EMERGENCY -->
+            <section id="tab-report" class="tab-content hidden space-y-6">
+                <div class="max-w-3xl mx-auto bg-slate-800/60 border border-slate-700 rounded-2xl p-6 md:p-8 shadow-xl">
+                    <div class="border-b border-slate-700 pb-4 mb-6">
+                        <h2 class="text-xl font-bold text-white flex items-center space-x-2">
+                            <i class="fa-solid fa-file-circle-plus text-red-500"></i>
+                            <span>Emergency Incident Reporting (Round 1)</span>
+                        </h2>
+                        <p class="text-sm text-slate-400 mt-1">Fill out the exact incident parameters. System will automatically evaluate and classify severity.</p>
+                    </div>
+
+                    <form id="emergency-form" onsubmit="handleIncidentSubmit(event)" class="space-y-5">
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+                            <div>
+                                <label class="block text-xs font-semibold uppercase text-slate-300 mb-1.5">Incident Title *</label>
+                                <input type="text" id="rep-title" required placeholder="e.g., Multi-Vehicle Highway Collision" class="w-full bg-navy-900 border border-slate-700 rounded-lg px-4 py-2.5 text-sm text-white focus:outline-none focus:border-red-500">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-semibold uppercase text-slate-300 mb-1.5">Emergency Category *</label>
+                                <select id="rep-category" required class="w-full bg-navy-900 border border-slate-700 rounded-lg px-4 py-2.5 text-sm text-white focus:outline-none focus:border-red-500">
+                                    <option value="" disabled selected>Select Category</option>
+                                    <option value="Fire Emergency">Fire Emergency</option>
+                                    <option value="Road Accident">Road Accident</option>
+                                    <option value="Medical Emergency">Medical Emergency</option>
+                                    <option value="Flood">Flood</option>
+                                    <option value="Building Collapse">Building Collapse</option>
+                                    <option value="Other Emergencies">Other Emergencies</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div>
+                            <label class="block text-xs font-semibold uppercase text-slate-300 mb-1.5">Incident Description *</label>
+                            <textarea id="rep-desc" rows="3" required placeholder="Describe the severity, hazards, trapped people, or immediate dangers..." class="w-full bg-navy-900 border border-slate-700 rounded-lg px-4 py-2.5 text-sm text-white focus:outline-none focus:border-red-500"></textarea>
+                        </div>
+
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+                            <div>
+                                <label class="block text-xs font-semibold uppercase text-slate-300 mb-1.5">Location Name / Address *</label>
+                                <input type="text" id="rep-location" required placeholder="e.g., Downtown Sector 4, Main Highway" class="w-full bg-navy-900 border border-slate-700 rounded-lg px-4 py-2.5 text-sm text-white focus:outline-none focus:border-red-500">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-semibold uppercase text-slate-300 mb-1.5">Number of People Affected *</label>
+                                <input type="number" id="rep-affected" min="1" required placeholder="e.g., 15" class="w-full bg-navy-900 border border-slate-700 rounded-lg px-4 py-2.5 text-sm text-white focus:outline-none focus:border-red-500">
+                            </div>
+                        </div>
+
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-5">
+                            <div>
+                                <label class="block text-xs font-semibold uppercase text-slate-300 mb-1.5">Latitude *</label>
+                                <input type="number" step="any" id="rep-lat" required placeholder="12.9716" class="w-full bg-navy-900 border border-slate-700 rounded-lg px-4 py-2.5 text-sm text-white focus:outline-none focus:border-red-500">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-semibold uppercase text-slate-300 mb-1.5">Longitude *</label>
+                                <input type="number" step="any" id="rep-lng" required placeholder="77.5946" class="w-full bg-navy-900 border border-slate-700 rounded-lg px-4 py-2.5 text-sm text-white focus:outline-none focus:border-red-500">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-semibold uppercase text-slate-300 mb-1.5">Optional Contact Info</label>
+                                <input type="text" id="rep-contact" placeholder="Phone or Name" class="w-full bg-navy-900 border border-slate-700 rounded-lg px-4 py-2.5 text-sm text-white focus:outline-none focus:border-red-500">
+                            </div>
+                        </div>
+
+                        <div class="pt-4 flex items-center justify-end space-x-3">
+                            <button type="button" onclick="fillSampleReportForm()" class="bg-slate-700 hover:bg-slate-600 text-slate-200 px-4 py-2 rounded-lg text-sm transition">
+                                Fill Demo Sample
+                            </button>
+                            <button type="submit" class="bg-red-600 hover:bg-red-700 text-white font-semibold px-6 py-2.5 rounded-lg text-sm transition shadow-lg shadow-red-600/30">
+                                Submit Emergency Report
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </section>
+
+            <!-- TAB 3: ALL INCIDENTS & ADMIN DASHBOARD -->
+            <section id="tab-incidents" class="tab-content hidden space-y-6">
+                <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                    <div>
+                        <h1 class="text-2xl font-bold text-white">Emergency Incident Management</h1>
+                        <p class="text-sm text-slate-400">Admin dashboard to inspect, filter, update status, and manage reports.</p>
+                    </div>
+                    <div class="flex items-center space-x-3">
+                        <button onclick="openReportModal()" class="bg-red-600 hover:bg-red-700 text-white text-xs font-semibold px-3.5 py-2 rounded-lg transition">
+                            <i class="fa-solid fa-plus mr-1"></i> New Incident
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Filters & Search Toolbar -->
+                <div class="bg-slate-800/60 border border-slate-700 p-4 rounded-xl flex flex-col md:flex-row items-center justify-between gap-4">
+                    <div class="w-full md:w-72 relative">
+                        <i class="fa-solid fa-magnifying-glass absolute left-3 top-3 text-slate-400 text-sm"></i>
+                        <input type="text" id="incident-search" oninput="renderIncidentsTable()" placeholder="Search title, location..." class="w-full bg-navy-900 border border-slate-700 rounded-lg pl-9 pr-4 py-2 text-sm text-white focus:outline-none focus:border-blue-500">
+                    </div>
+                    <div class="flex flex-wrap items-center gap-3 w-full md:w-auto">
+                        <select id="filter-category" onchange="renderIncidentsTable()" class="bg-navy-900 border border-slate-700 rounded-lg px-3 py-2 text-xs text-white focus:outline-none">
+                            <option value="ALL">All Categories</option>
+                            <option value="Fire Emergency">Fire Emergency</option>
+                            <option value="Road Accident">Road Accident</option>
+                            <option value="Medical Emergency">Medical Emergency</option>
+                            <option value="Flood">Flood</option>
+                            <option value="Building Collapse">Building Collapse</option>
+                            <option value="Other Emergencies">Other Emergencies</option>
+                        </select>
+                        <select id="filter-severity" onchange="renderIncidentsTable()" class="bg-navy-900 border border-slate-700 rounded-lg px-3 py-2 text-xs text-white focus:outline-none">
+                            <option value="ALL">All Severities</option>
+                            <option value="Critical">Critical</option>
+                            <option value="High">High</option>
+                            <option value="Medium">Medium</option>
+                            <option value="Low">Low</option>
+                        </select>
+                        <select id="filter-status" onchange="renderIncidentsTable()" class="bg-navy-900 border border-slate-700 rounded-lg px-3 py-2 text-xs text-white focus:outline-none">
+                            <option value="ALL">All Statuses</option>
+                            <option value="Reported">Reported</option>
+                            <option value="Pending">Pending</option>
+                            <option value="In Progress">In Progress</option>
+                            <option value="Resolved">Resolved</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Incidents Table / Cards -->
+                <div class="bg-slate-800/40 border border-slate-700/80 rounded-2xl overflow-hidden shadow-xl">
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left border-collapse">
+                            <thead>
+                                <tr class="bg-navy-950/80 border-b border-slate-700 text-xs font-semibold text-slate-400 uppercase">
+                                    <th class="p-4">Incident / Category</th>
+                                    <th class="p-4">Severity</th>
+                                    <th class="p-4">Location</th>
+                                    <th class="p-4">Affected</th>
+                                    <th class="p-4">Status</th>
+                                    <th class="p-4">Assigned Team</th>
+                                    <th class="p-4 text-right">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="incidents-table-body" class="divide-y divide-slate-800 text-sm">
+                                <!-- Populated dynamically -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+            <!-- TAB 4: PRIORITY MANAGEMENT -->
+            <section id="tab-priority" class="tab-content hidden space-y-6">
+                <div>
+                    <h1 class="text-2xl font-bold text-white">Intelligent Incident Prioritization (Round 2)</h1>
+                    <p class="text-sm text-slate-400">Algorithmic ranking combining severity weights, affected population, elapsed time, and category coefficients.</p>
+                </div>
+
+                <div class="grid grid-cols-1 gap-4" id="priority-list-container">
+                    <!-- Populated dynamically -->
+                </div>
+            </section>
+
+            <!-- TAB 5: RESPONSE TEAMS MANAGEMENT -->
+            <section id="tab-teams" class="tab-content hidden space-y-6">
+                <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                    <div>
+                        <h1 class="text-2xl font-bold text-white">Emergency Response Team Management</h1>
+                        <p class="text-sm text-slate-400">Manage rescue squads, monitor availability status, coordinates, and current assignments.</p>
+                    </div>
+                    <button onclick="openTeamModal()" class="bg-emerald-600 hover:bg-emerald-700 text-white font-semibold px-4 py-2 rounded-lg text-sm transition flex items-center space-x-2">
+                        <i class="fa-solid fa-user-plus"></i>
+                        <span>Add New Team</span>
+                    </button>
+                </div>
+
+                <!-- Teams Grid -->
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6" id="teams-grid-container">
+                    <!-- Populated dynamically -->
+                </div>
+            </section>
+
+            <!-- TAB 6: TEAM ASSIGNMENT & LIVE MAP -->
+            <section id="tab-assignment" class="tab-content hidden space-y-6">
+                <div>
+                    <h1 class="text-2xl font-bold text-white">Location-Based Team Assignment & Live Map</h1>
+                    <p class="text-sm text-slate-400">Haversine distance calculation, smart nearest-team recommendation, and interactive Leaflet routing visualization.</p>
+                </div>
+
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    <!-- Incident Selection & Recommendation Column -->
+                    <div class="bg-slate-800/60 border border-slate-700 rounded-2xl p-6 flex flex-col space-y-5">
+                        <h2 class="text-lg font-bold text-white flex items-center space-x-2">
+                            <i class="fa-solid fa-bullseye text-cyan-400"></i>
+                            <span>Select Unassigned Incident</span>
+                        </h2>
+                        <div>
+                            <label class="block text-xs font-semibold uppercase text-slate-300 mb-2">Active Emergency</label>
+                            <select id="assignment-incident-select" onchange="onSelectAssignmentIncident()" class="w-full bg-navy-900 border border-slate-700 rounded-lg px-4 py-2.5 text-sm text-white focus:outline-none focus:border-cyan-500">
+                                <option value="" disabled selected>-- Select Incident to Assign --</option>
+                            </select>
+                        </div>
+
+                        <div id="assignment-details-box" class="bg-navy-900/80 border border-slate-700/80 rounded-xl p-4 space-y-3 hidden">
+                            <h3 class="text-sm font-bold text-white border-b border-slate-700 pb-2">Incident Telemetry</h3>
+                            <div class="text-xs space-y-1.5 text-slate-300">
+                                <p><strong class="text-slate-400">Category:</strong> <span id="assign-card-cat"></span></p>
+                                <p><strong class="text-slate-400">Severity:</strong> <span id="assign-card-sev"></span></p>
+                                <p><strong class="text-slate-400">Location:</strong> <span id="assign-card-loc"></span></p>
+                                <p><strong class="text-slate-400">Coordinates:</strong> <span id="assign-card-coords"></span></p>
+                            </div>
+                        </div>
+
+                        <div class="border-t border-slate-700 pt-4 flex-1">
+                            <h3 class="text-sm font-bold text-white mb-3 flex items-center space-x-2">
+                                <i class="fa-solid fa-wand-magic-sparkles text-amber-400"></i>
+                                <span>Nearest Suitable Available Teams</span>
+                            </h3>
+                            <div id="nearest-teams-list" class="space-y-3 max-h-72 overflow-y-auto pr-1">
+                                <p class="text-xs text-slate-400 italic">Select an incident above to calculate Haversine distances for available teams.</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Leaflet Map Container -->
+                    <div class="lg:col-span-2 bg-slate-800/60 border border-slate-700 rounded-2xl p-4 flex flex-col h-[600px] shadow-xl">
+                        <div class="flex items-center justify-between pb-3 px-2 border-b border-slate-700">
+                            <h2 class="text-sm font-bold text-white flex items-center space-x-2">
+                                <i class="fa-solid fa-map text-emerald-400"></i>
+                                <span>Live Operations Map (OpenStreetMap & Leaflet)</span>
+                            </h2>
+                            <div class="flex items-center space-x-3 text-xs text-slate-400">
+                                <span class="flex items-center"><span class="w-3 h-3 rounded-full bg-red-500 inline-block mr-1"></span> Incident</span>
+                                <span class="flex items-center"><span class="w-3 h-3 rounded-full bg-emerald-500 inline-block mr-1"></span> Team</span>
+                            </div>
+                        </div>
+                        <div id="leaflet-map" class="flex-1 mt-3 rounded-xl z-10"></div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- TAB 7: ADVANCED ANALYTICS -->
+            <section id="tab-analytics" class="tab-content hidden space-y-6">
+                <div>
+                    <h1 class="text-2xl font-bold text-white">Advanced Telemetry & Analytics</h1>
+                    <p class="text-sm text-slate-400">Comprehensive statistical graphs powered by Chart.js.</p>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div class="bg-slate-800/50 border border-slate-700 rounded-2xl p-6">
+                        <h2 class="text-base font-bold text-white mb-4">Incidents Distribution by Category</h2>
+                        <div class="h-72 relative flex items-center justify-center">
+                            <canvas id="analytics-pie-chart"></canvas>
+                        </div>
+                    </div>
+
+                    <div class="bg-slate-800/50 border border-slate-700 rounded-2xl p-6">
+                        <h2 class="text-base font-bold text-white mb-4">Incidents by Severity Level</h2>
+                        <div class="h-72 relative flex items-center justify-center">
+                            <canvas id="analytics-bar-chart"></canvas>
+                        </div>
+                    </div>
+
+                    <div class="md:col-span-2 bg-slate-800/50 border border-slate-700 rounded-2xl p-6">
+                        <h2 class="text-base font-bold text-white mb-4">Incident Reporting Trends (Timeline)</h2>
+                        <div class="h-72 relative">
+                            <canvas id="analytics-line-chart"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+        </main>
+    </div>
+
+    <!-- MODAL: REPORT EMERGENCY (Quick Action) -->
+    <div id="report-modal" class="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm hidden flex items-center justify-center p-4">
+        <div class="bg-slate-800 border border-slate-700 rounded-2xl w-full max-w-xl p-6 shadow-2xl relative max-h-[90vh] overflow-y-auto">
+            <button onclick="closeReportModal()" class="absolute top-4 right-4 text-slate-400 hover:text-white text-lg"><i class="fa-solid fa-xmark"></i></button>
+            <h2 class="text-lg font-bold text-white mb-4 flex items-center space-x-2">
+                <i class="fa-solid fa-triangle-exclamation text-red-500"></i>
+                <span>Report Emergency Incident</span>
+            </h2>
+            <form id="modal-emergency-form" onsubmit="handleModalIncidentSubmit(event)" class="space-y-4">
+                <div>
+                    <label class="block text-xs font-semibold uppercase text-slate-300 mb-1">Incident Title *</label>
+                    <input type="text" id="m-title" required placeholder="e.g., Major Gas Leak" class="w-full bg-navy-900 border border-slate-700 rounded-lg px-3.5 py-2 text-sm text-white focus:outline-none focus:border-red-500">
+                </div>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-semibold uppercase text-slate-300 mb-1">Category *</label>
+                        <select id="m-category" required class="w-full bg-navy-900 border border-slate-700 rounded-lg px-3.5 py-2 text-sm text-white focus:outline-none">
+                            <option value="Fire Emergency">Fire Emergency</option>
+                            <option value="Road Accident">Road Accident</option>
+                            <option value="Medical Emergency">Medical Emergency</option>
+                            <option value="Flood">Flood</option>
+                            <option value="Building Collapse">Building Collapse</option>
+                            <option value="Other Emergencies">Other Emergencies</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold uppercase text-slate-300 mb-1">People Affected *</label>
+                        <input type="number" id="m-affected" min="1" required value="5" class="w-full bg-navy-900 border border-slate-700 rounded-lg px-3.5 py-2 text-sm text-white focus:outline-none">
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold uppercase text-slate-300 mb-1">Description *</label>
+                    <textarea id="m-desc" rows="2" required placeholder="Brief description of emergency..." class="w-full bg-navy-900 border border-slate-700 rounded-lg px-3.5 py-2 text-sm text-white focus:outline-none"></textarea>
+                </div>
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div>
+                        <label class="block text-xs font-semibold uppercase text-slate-300 mb-1">Location Name *</label>
+                        <input type="text" id="m-location" required placeholder="e.g., Sector 9 Market" class="w-full bg-navy-900 border border-slate-700 rounded-lg px-3.5 py-2 text-sm text-white focus:outline-none">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold uppercase text-slate-300 mb-1">Latitude *</label>
+                        <input type="number" step="any" id="m-lat" required value="12.972" class="w-full bg-navy-900 border border-slate-700 rounded-lg px-3.5 py-2 text-sm text-white focus:outline-none">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold uppercase text-slate-300 mb-1">Longitude *</label>
+                        <input type="number" step="any" id="m-lng" required value="77.595" class="w-full bg-navy-900 border border-slate-700 rounded-lg px-3.5 py-2 text-sm text-white focus:outline-none">
+                    </div>
+                </div>
+                <div class="flex justify-end space-x-3 pt-3 border-t border-slate-700">
+                    <button type="button" onclick="closeReportModal()" class="bg-slate-700 hover:bg-slate-600 text-slate-200 px-4 py-2 rounded-lg text-sm">Cancel</button>
+                    <button type="submit" class="bg-red-600 hover:bg-red-700 text-white font-semibold px-5 py-2 rounded-lg text-sm shadow-lg shadow-red-600/30">Submit Report</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- MODAL: ADD / EDIT RESPONSE TEAM -->
+    <div id="team-modal" class="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm hidden flex items-center justify-center p-4">
+        <div class="bg-slate-800 border border-slate-700 rounded-2xl w-full max-w-md p-6 shadow-2xl relative">
+            <button onclick="closeTeamModal()" class="absolute top-4 right-4 text-slate-400 hover:text-white text-lg"><i class="fa-solid fa-xmark"></i></button>
+            <h2 id="team-modal-title" class="text-lg font-bold text-white mb-4 flex items-center space-x-2">
+                <i class="fa-solid fa-users-gear text-emerald-400"></i>
+                <span>Add Response Team</span>
+            </h2>
+            <form id="team-form" onsubmit="handleTeamFormSubmit(event)" class="space-y-4">
+                <input type="hidden" id="team-edit-id">
+                <div>
+                    <label class="block text-xs font-semibold uppercase text-slate-300 mb-1">Team Name / ID *</label>
+                    <input type="text" id="t-name" required placeholder="e.g., Fire Rescue Team 05" class="w-full bg-navy-900 border border-slate-700 rounded-lg px-3.5 py-2 text-sm text-white focus:outline-none">
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold uppercase text-slate-300 mb-1">Response Category *</label>
+                    <select id="t-category" required class="w-full bg-navy-900 border border-slate-700 rounded-lg px-3.5 py-2 text-sm text-white focus:outline-none">
+                        <option value="Fire Emergency">Fire Emergency</option>
+                        <option value="Road Accident">Road Accident</option>
+                        <option value="Medical Emergency">Medical Emergency</option>
+                        <option value="Flood">Flood</option>
+                        <option value="Building Collapse">Building Collapse</option>
+                        <option value="General Emergency">General Emergency</option>
+                    </select>
+                </div>
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-semibold uppercase text-slate-300 mb-1">Latitude *</label>
+                        <input type="number" step="any" id="t-lat" required value="12.960" class="w-full bg-navy-900 border border-slate-700 rounded-lg px-3.5 py-2 text-sm text-white focus:outline-none">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold uppercase text-slate-300 mb-1">Longitude *</label>
+                        <input type="number" step="any" id="t-lng" required value="77.580" class="w-full bg-navy-900 border border-slate-700 rounded-lg px-3.5 py-2 text-sm text-white focus:outline-none">
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold uppercase text-slate-300 mb-1">Availability Status *</label>
+                    <select id="t-status" required class="w-full bg-navy-900 border border-slate-700 rounded-lg px-3.5 py-2 text-sm text-white focus:outline-none">
+                        <option value="Available">Available</option>
+                        <option value="Busy">Busy</option>
+                    </select>
+                </div>
+                <div class="flex justify-end space-x-3 pt-3 border-t border-slate-700">
+                    <button type="button" onclick="closeTeamModal()" class="bg-slate-700 hover:bg-slate-600 text-slate-200 px-4 py-2 rounded-lg text-sm">Cancel</button>
+                    <button type="submit" class="bg-emerald-600 hover:bg-emerald-700 text-white font-semibold px-5 py-2 rounded-lg text-sm shadow-lg shadow-emerald-600/30">Save Team</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- MODAL: VIEW INCIDENT DETAILS -->
+    <div id="details-modal" class="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm hidden flex items-center justify-center p-4">
+        <div class="bg-slate-800 border border-slate-700 rounded-2xl w-full max-w-lg p-6 shadow-2xl relative">
+            <button onclick="closeDetailsModal()" class="absolute top-4 right-4 text-slate-400 hover:text-white text-lg"><i class="fa-solid fa-xmark"></i></button>
+            <h2 class="text-lg font-bold text-white mb-4 flex items-center space-x-2">
+                <i class="fa-solid fa-circle-info text-blue-400"></i>
+                <span>Incident Telemetry & Lifecycle</span>
+            </h2>
+            <div id="details-modal-content" class="space-y-3 text-sm text-slate-300">
+                <!-- Populated dynamically -->
+            </div>
+            <div class="mt-6 pt-4 border-t border-slate-700 flex justify-end">
+                <button onclick="closeDetailsModal()" class="bg-slate-700 hover:bg-slate-600 text-white px-4 py-2 rounded-lg text-sm">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Leaflet JS -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+    <!-- Application Script -->
+    <script>
+        /* ==========================================
+           1. INITIALIZATION & SAMPLE DATA (LocalStorage)
+           ========================================== */
+        
+        const DEFAULT_INCIDENTS = [
+            {
+                id: "INC-1001",
+                title: "Major Commercial High-Rise Fire",
+                category: "Fire Emergency",
+                description: "Severe electrical fire on 8th floor with smoke trapping occupants. Immediate aerial ladder needed.",
+                location: "Central Business District, Tower B",
+                affected: 45,
+                lat: 12.9716,
+                lng: 77.5946,
+                contact: "+91 98765 43210",
+                severity: "Critical",
+                status: "Reported",
+                assignedTeamId: null,
+                timestamp: Date.now() - 3600000 * 2 // 2 hours ago
+            },
+            {
+                id: "INC-1002",
+                title: "Multi-Vehicle Expressway Collision",
+                category: "Road Accident",
+                description: "Pile-up of 4 vehicles involving a fuel tanker truck. Oil spillage and severe injuries reported.",
+                location: "NH-44 Bypass Junction",
+                affected: 12,
+                lat: 12.9352,
+                lng: 77.6245,
+                contact: "+91 91234 56789",
+                severity: "High",
+                status: "In Progress",
+                assignedTeamId: "TEAM-02",
+                timestamp: Date.now() - 3600000 * 5
+            },
+            {
+                id: "INC-1003",
+                title: "Flash Flood Inundation in Residential Area",
+                category: "Flood",
+                description: "Heavy overnight rainfall breached the drainage canal. Ground floors submerged up to 4 feet.",
+                location: "Greenwood Colony, Sector 3",
+                affected: 120,
+                lat: 13.0112,
+                lng: 77.5540,
+                contact: "Local Ward Office",
+                severity: "Critical",
+                status: "Pending",
+                assignedTeamId: null,
+                timestamp: Date.now() - 3600000 * 1
+            },
+            {
+                id: "INC-1004",
+                title: "Under-Construction Building Partial Collapse",
+                category: "Building Collapse",
+                description: "Scaffolding and concrete slab collapsed during casting. 6 construction workers trapped underneath.",
+                location: "Tech Park Avenue, Site 7",
+                affected: 8,
+                lat: 12.9250,
+                lng: 77.5838,
+                contact: "Site Engineer",
+                severity: "Critical",
+                status: "Reported",
+                assignedTeamId: null,
+                timestamp: Date.now() - 900000 // 15 mins ago
+            },
+            {
+                id: "INC-1005",
+                title: "Industrial Chemical Leak & Breathing Difficulties",
+                category: "Medical Emergency",
+                description: "Ammonia valve rupture in cold storage unit. Workers experiencing acute respiratory irritation.",
+                location: "Industrial Estate Phase 2",
+                affected: 25,
+                lat: 12.9901,
+                lng: 77.6412,
+                contact: "Plant Manager",
+                severity: "High",
+                status: "Reported",
+                assignedTeamId: null,
+                timestamp: Date.now() - 1800000 // 30 mins ago
+            },
+            {
+                id: "INC-1006",
+                title: "Severe Cardiac Arrest in Shopping Mall",
+                category: "Medical Emergency",
+                description: "Elderly visitor collapsed near food court. CPR in progress by bystanders.",
+                location: "Orion Mall, Atrium Level 2",
+                affected: 1,
+                lat: 12.9950,
+                lng: 77.5580,
+                contact: "Security Desk",
+                severity: "Medium",
+                status: "Resolved",
+                assignedTeamId: null,
+                timestamp: Date.now() - 3600000 * 8
+            },
+            {
+                id: "INC-1007",
+                title: "Residential House Short Circuit Fire",
+                category: "Fire Emergency",
+                description: "Meter box explosion leading to room fire. Residents safely evacuated.",
+                location: "MG Road Cross Street 4",
+                affected: 4,
+                lat: 12.9750,
+                lng: 77.6080,
+                contact: "Homeowner",
+                severity: "Medium",
+                status: "Resolved",
+                assignedTeamId: null,
+                timestamp: Date.now() - 3600000 * 12
+            },
+            {
+                id: "INC-1008",
+                title: "Collapsed Drainage Pit on Main Street",
+                category: "Other Emergencies",
+                description: "Heavy vehicle caved in due to underground pipe rupture. Traffic blocked completely.",
+                location: "Ring Road Junction 9",
+                affected: 3,
+                lat: 12.9100,
+                lng: 77.5700,
+                contact: "Traffic Police",
+                severity: "Low",
+                status: "Reported",
+                assignedTeamId: null,
+                timestamp: Date.now() - 3600000 * 4
+            }
+        ];
+
+        const DEFAULT_TEAMS = [
+            { id: "TEAM-01", name: "Fire Rescue Team 01", category: "Fire Emergency", lat: 12.9800, lng: 77.5900, status: "Available", assignedIncidentId: null },
+            { id: "TEAM-02", name: "Medical Response Team 02", category: "Medical Emergency", lat: 12.9300, lng: 77.6100, status: "Busy", assignedIncidentId: "INC-1002" },
+            { id: "TEAM-03", name: "Flood Rescue Team 03", category: "Flood", lat: 13.0000, lng: 77.5400, status: "Available", assignedIncidentId: null },
+            { id: "TEAM-04", name: "General Emergency Team 04", category: "General Emergency", lat: 12.9600, lng: 77.5800, status: "Available", assignedIncidentId: null },
+            { id: "TEAM-05", name: "Heavy Extraction Unit 05", category: "Building Collapse", lat: 12.9200, lng: 77.5900, status: "Available", assignedIncidentId: null },
+            { id: "TEAM-06", name: "Rapid Medical Squad 06", category: "Medical Emergency", lat: 12.9750, lng: 77.6200, status: "Available", assignedIncidentId: null }
+        ];
+
+        let incidents = JSON.parse(localStorage.getItem('resq_incidents')) || DEFAULT_INCIDENTS;
+        let teams = JSON.parse(localStorage.getItem('resq_teams')) || DEFAULT_TEAMS;
+
+        function saveToLocalStorage() {
+            localStorage.setItem('resq_incidents', JSON.stringify(incidents));
+            localStorage.setItem('resq_teams', JSON.stringify(teams));
+        }
+
+        function resetDemoData() {
+            if (confirm("Reset all incidents and teams to default demonstration data?")) {
+                incidents = JSON.parse(JSON.stringify(DEFAULT_INCIDENTS));
+                teams = JSON.parse(JSON.stringify(DEFAULT_TEAMS));
+                saveToLocalStorage();
+                initApp();
+                showToast("System reset to demo data successfully.", "success");
+            }
+        }
+
+        /* ==========================================
+           2. TOAST NOTIFICATIONS
+           ========================================== */
+        function showToast(message, type = 'success') {
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+            const bgCol = type === 'success' ? 'bg-emerald-600' : type === 'error' ? 'bg-red-600' : 'bg-blue-600';
+            const icon = type === 'success' ? 'fa-circle-check' : type === 'error' ? 'fa-triangle-exclamation' : 'fa-circle-info';
+
+            toast.className = `${bgCol} text-white px-4 py-3 rounded-xl shadow-xl flex items-center space-x-3 pointer-events-auto transform translate-y-2 opacity-0 transition-all duration-300 font-medium text-sm`;
+            toast.innerHTML = `<i class="fa-solid ${icon} text-lg"></i><span>${message}</span>`;
+            
+            container.appendChild(toast);
+            setTimeout(() => { toast.classList.remove('translate-y-2', 'opacity-0'); }, 50);
+
+            setTimeout(() => {
+                toast.classList.add('translate-y-2', 'opacity-0');
+                setTimeout(() => toast.remove(), 300);
+            }, 3500);
+        }
+
+        /* ==========================================
+           3. AUTOMATIC SEVERITY CLASSIFICATION
+           ========================================== */
+        function calculateSeverity(category, description, affected) {
+            const desc = description.toLowerCase();
+            const aff = parseInt(affected) || 1;
+
+            if (aff >= 30 || desc.includes('trapped') || desc.includes('collapse') || desc.includes('explosion') || desc.includes('major fire') || desc.includes('chemical leak') || category === 'Building Collapse') {
+                return 'Critical';
+            }
+            if (aff >= 10 || desc.includes('severe') || desc.includes('injur') || desc.includes('submerged') || category === 'Flood' || category === 'Fire Emergency') {
+                return 'High';
+            }
+            if (aff >= 3 || desc.includes('collision') || desc.includes('blocked')) {
+                return 'Medium';
+            }
+            return 'Low';
+        }
+
+        /* ==========================================
+           4. HAVERSINE DISTANCE FORMULA (KM)
+           ========================================== */
+        function calculateHaversineDistance(lat1, lon1, lat2, lon2) {
+            const R = 6371; // Earth radius in km
+            const dLat = (lat2 - lat1) * Math.PI / 180;
+            const dLon = (lon2 - lon1) * Math.PI / 180;
+            const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+                      Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+                      Math.sin(dLon/2) * Math.sin(dLon/2);
+            const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+            return R * c;
+        }
+
+        /* ==========================================
+           5. TAB NAVIGATION & UI CONTROLLER
+           ========================================== */
+        let activeTabName = 'overview';
+        let leafletMap = null;
+        let mapMarkersLayer = null;
+        let chartInstances = {};
+
+        function switchTab(tabId) {
+            activeTabName = tabId;
+            document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
+            document.getElementById(`tab-${tabId}`).classList.remove('hidden');
+
+            document.querySelectorAll('.nav-link').forEach(el => {
+                el.classList.remove('bg-slate-800', 'text-white');
+                if (el.getAttribute('data-tab') === tabId) {
+                    el.classList.add('bg-slate-800', 'text-white');
+                }
+            });
+
+            // Close mobile sidebar if open
+            document.getElementById('sidebar').classList.add('-translate-x-full');
+
+            // Render tab-specific UI
+            if (tabId === 'overview') renderOverview();
+            if (tabId === 'incidents') renderIncidentsTable();
+            if (tabId === 'priority') renderPriorityManagement();
+            if (tabId === 'teams') renderTeamsManagement();
+            if (tabId === 'assignment') {
+                initAssignmentView();
+            }
+            if (tabId === 'analytics') renderAnalyticsCharts();
+        }
+
+        // Mobile Sidebar Toggle
+        document.getElementById('sidebar-toggle').addEventListener('click', () => {
+            document.getElementById('sidebar').classList.toggle('-translate-x-full');
+        });
+
+        function updateClock() {
+            const now = new Date();
+            const el = document.getElementById('current-time-display');
+            if (el) el.innerText = now.toUTCString().replace('GMT', 'UTC');
+        }
+        setInterval(updateClock, 1000);
+
+        /* ==========================================
+           6. OVERVIEW & METRICS RENDERING
+           ========================================== */
+        function renderOverview() {
+            const total = incidents.length;
+            const critical = incidents.filter(i => i.severity === 'Critical').length;
+            const availableTeams = teams.filter(t => t.status === 'Available').length;
+            const resolved = incidents.filter(i => i.status === 'Resolved').length;
+
+            document.getElementById('stat-total-incidents').innerText = total;
+            document.getElementById('stat-critical-incidents').innerText = critical;
+            document.getElementById('stat-available-teams').innerText = availableTeams;
+            document.getElementById('stat-resolved-incidents').innerText = resolved;
+
+            // Critical & High alerts list
+            const critListEl = document.getElementById('overview-critical-list');
+            const urgentIncidents = incidents.filter(i => i.severity === 'Critical' || i.severity === 'High').slice(0, 4);
+
+            if (urgentIncidents.length === 0) {
+                critListEl.innerHTML = `<p class="text-xs text-slate-400 italic">No critical emergencies at this moment.</p>`;
+            } else {
+                critListEl.innerHTML = urgentIncidents.map(inc => `
+                    <div class="bg-navy-900/80 border border-slate-700/80 rounded-xl p-3.5 flex items-center justify-between">
+                        <div>
+                            <div class="flex items-center space-x-2">
+                                <span class="px-2 py-0.5 rounded text-[10px] font-bold ${inc.severity === 'Critical' ? 'bg-red-500/20 text-red-400 border border-red-500/30' : 'bg-amber-500/20 text-amber-400 border border-amber-500/30'}">${inc.severity}</span>
+                                <span class="text-xs font-semibold text-white">${inc.title}</span>
+                            </div>
+                            <p class="text-xs text-slate-400 mt-1"><i class="fa-solid fa-location-dot text-slate-500 mr-1"></i> ${inc.location} • <span class="text-slate-300">${inc.category}</span></p>
+                        </div>
+                        <button onclick="switchTab('assignment'); document.getElementById('assignment-incident-select').value='${inc.id}'; onSelectAssignmentIncident();" class="bg-blue-600 hover:bg-blue-700 text-white text-xs px-3 py-1.5 rounded-lg transition">
+                            Deploy Team
+                        </button>
+                    </div>
+                `).join('');
+            }
+
+            // Overview Pie Chart
+            renderOverviewPieChart();
+        }
+
+        function renderOverviewPieChart() {
+            const ctx = document.getElementById('overview-category-chart').getContext('2d');
+            if (chartInstances.overviewPie) chartInstances.overviewPie.destroy();
+
+            const categories = {};
+            incidents.forEach(i => {
+                categories[i.category] = (categories[i.category] || 0) + 1;
+            });
+
+            chartInstances.overviewPie = new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: Object.keys(categories),
+                    datasets: [{
+                        data: Object.values(categories),
+                        backgroundColor: ['#ef4444', '#f59e0b', '#3b82f6', '#06b6d4', '#8b5cf6', '#10b981'],
+                        borderWidth: 0
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { position: 'bottom', labels: { color: '#94a3b8', font: { size: 11 } } }
+                    }
+                }
+            });
+        }
+
+        /* ==========================================
+           7. REPORTING FORM LOGIC
+           ========================================== */
+        function handleIncidentSubmit(e) {
+            e.preventDefault();
+            const title = document.getElementById('rep-title').value.trim();
+            const category = document.getElementById('rep-category').value;
+            const desc = document.getElementById('rep-desc').value.trim();
+            const location = document.getElementById('rep-location').value.trim();
+            const affected = parseInt(document.getElementById('rep-affected').value) || 1;
+            const lat = parseFloat(document.getElementById('rep-lat').value);
+            const lng = parseFloat(document.getElementById('rep-lng').value);
+            const contact = document.getElementById('rep-contact').value.trim() || 'N/A';
+
+            const severity = calculateSeverity(category, desc, affected);
+            const newId = `INC-${Math.floor(1000 + Math.random() * 9000)}`;
+
+            const newIncident = {
+                id: newId,
+                title, category, description: desc, location, affected, lat, lng, contact, severity,
+                status: 'Reported',
+                assignedTeamId: null,
+                timestamp: Date.now()
+            };
+
+            incidents.unshift(newIncident);
+            saveToLocalStorage();
+            document.getElementById('emergency-form').reset();
+            showToast(`Emergency reported successfully! ID: ${newId} (${severity} Severity)`, severity === 'Critical' ? 'error' : 'success');
+            switchTab('incidents');
+        }
+
+        function handleModalIncidentSubmit(e) {
+            e.preventDefault();
+            const title = document.getElementById('m-title').value.trim();
+            const category = document.getElementById('m-category').value;
+            const desc = document.getElementById('m-desc').value.trim();
+            const location = document.getElementById('m-location').value.trim();
+            const affected = parseInt(document.getElementById('m-affected').value) || 1;
+            const lat = parseFloat(document.getElementById('m-lat').value);
+            const lng = parseFloat(document.getElementById('m-lng').value);
+
+            const severity = calculateSeverity(category, desc, affected);
+            const newIncident = {
+                id: `INC-${Math.floor(1000 + Math.random() * 9000)}`,
+                title, category, description: desc, location, affected, lat, lng, contact: 'Control Room Direct', severity,
+                status: 'Reported',
+                assignedTeamId: null,
+                timestamp: Date.now()
+            };
+
+            incidents.unshift(newIncident);
+            saveToLocalStorage();
+            closeReportModal();
+            showToast(`Incident reported successfully! Severity: ${severity}`, 'success');
+            if (activeTabName === 'incidents') renderIncidentsTable();
+            if (activeTabName === 'overview') renderOverview();
+        }
+
+        function fillSampleReportForm() {
+            document.getElementById('rep-title').value = "Chemical Tanker Rollover & Spill";
+            document.getElementById('rep-category').value = "Road Accident";
+            document.getElementById('rep-desc').value = "Tanker truck overturned near intersection, leaking hazardous solvent with risk of ignition.";
+            document.getElementById('rep-location').value = "Outer Ring Road Junction 12";
+            document.getElementById('rep-affected').value = "18";
+            document.getElementById('rep-lat').value = "12.9450";
+            document.getElementById('rep-lng').value = "77.5850";
+            document.getElementById('rep-contact').value = "+91 99887 76655";
+        }
+
+        function openReportModal() { document.getElementById('report-modal').classList.remove('hidden'); }
+        function closeReportModal() { document.getElementById('report-modal').classList.add('hidden'); }
+
+        /* ==========================================
+           8. ALL INCIDENTS & ADMIN DASHBOARD
+           ========================================== */
+        function renderIncidentsTable() {
+            const searchVal = document.getElementById('incident-search').value.toLowerCase();
+            const catFilter = document.getElementById('filter-category').value;
+            const sevFilter = document.getElementById('filter-severity').value;
+            const statusFilter = document.getElementById('filter-status').value;
+
+            const filtered = incidents.filter(inc => {
+                const matchSearch = inc.title.toLowerCase().includes(searchVal) || inc.location.toLowerCase().includes(searchVal) || inc.id.toLowerCase().includes(searchVal);
+                const matchCat = catFilter === 'ALL' || inc.category === catFilter;
+                const matchSev = sevFilter === 'ALL' || inc.severity === sevFilter;
+                const matchStatus = statusFilter === 'ALL' || inc.status === statusFilter;
+                return matchSearch && matchCat && matchSev && matchStatus;
+            });
+
+            const tbody = document.getElementById('incidents-table-body');
+            if (filtered.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="7" class="p-6 text-center text-slate-400 italic">No matching incidents found.</td></tr>`;
+                return;
+            }
+
+            tbody.innerHTML = filtered.map(inc => {
+                const team = teams.find(t => t.id === inc.assignedTeamId);
+                const teamName = team ? team.name : '<span class="text-slate-500 italic">Unassigned</span>';
+
+                const sevBadge = inc.severity === 'Critical' ? 'bg-red-500/20 text-red-400 border border-red-500/40 pulse-critical' :
+                                 inc.severity === 'High' ? 'bg-amber-500/20 text-amber-400 border border-amber-500/40' :
+                                 inc.severity === 'Medium' ? 'bg-yellow-500/20 text-yellow-300 border border-yellow-500/30' :
+                                 'bg-blue-500/20 text-blue-300 border border-blue-500/30';
+
+                const statusBg = inc.status === 'Resolved' ? 'bg-cyan-500/20 text-cyan-300 border-cyan-500/30' :
+                                 inc.status === 'In Progress' ? 'bg-purple-500/20 text-purple-300 border-purple-500/30' :
+                                 inc.status === 'Pending' ? 'bg-amber-500/20 text-amber-300 border-amber-500/30' :
+                                 'bg-slate-700 text-slate-300';
+
+                return `
+                    <tr class="hover:bg-slate-800/60 transition">
+                        <td class="p-4">
+                            <span class="text-xs font-mono text-slate-400 block">${inc.id}</span>
+                            <span class="font-semibold text-white">${inc.title}</span>
+                            <span class="text-xs text-slate-400 block">${inc.category}</span>
+                        </td>
+                        <td class="p-4">
+                            <span class="px-2.5 py-1 rounded-full text-xs font-bold ${sevBadge}">${inc.severity}</span>
+                        </td>
+                        <td class="p-4 text-xs text-slate-300">${inc.location}</td>
+                        <td class="p-4 text-xs font-bold text-slate-200">${inc.affected} people</td>
+                        <td class="p-4">
+                            <select onchange="updateIncidentStatus('${inc.id}', this.value)" class="bg-navy-900 border border-slate-700 rounded-lg px-2.5 py-1 text-xs font-semibold ${statusBg} focus:outline-none cursor-pointer">
+                                <option value="Reported" ${inc.status === 'Reported' ? 'selected' : ''}>Reported</option>
+                                <option value="Pending" ${inc.status === 'Pending' ? 'selected' : ''}>Pending</option>
+                                <option value="In Progress" ${inc.status === 'In Progress' ? 'selected' : ''}>In Progress</option>
+                                <option value="Resolved" ${inc.status === 'Resolved' ? 'selected' : ''}>Resolved</option>
+                            </select>
+                        </td>
+                        <td class="p-4 text-xs">${teamName}</td>
+                        <td class="p-4 text-right space-x-2">
+                            <button onclick="viewIncidentDetails('${inc.id}')" title="View Telemetry" class="bg-slate-700 hover:bg-slate-600 text-slate-200 p-2 rounded-lg text-xs transition">
+                                <i class="fa-solid fa-eye"></i>
+                            </button>
+                            <button onclick="deleteIncident('${inc.id}')" title="Delete Incident" class="bg-red-600/20 hover:bg-red-600 text-red-400 hover:text-white p-2 rounded-lg text-xs transition">
+                                <i class="fa-solid fa-trash"></i>
+                            </button>
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        function updateIncidentStatus(incId, newStatus) {
+            const inc = incidents.find(i => i.id === incId);
+            if (!inc) return;
+
+            const oldStatus = inc.status;
+            inc.status = newStatus;
+
+            // If resolved, free up assigned team
+            if (newStatus === 'Resolved' && inc.assignedTeamId) {
+                const team = teams.find(t => t.id === inc.assignedTeamId);
+                if (team) {
+                    team.status = 'Available';
+                    team.assignedIncidentId = null;
+                }
+                inc.assignedTeamId = null;
+            }
+
+            saveToLocalStorage();
+            showToast(`Incident ${incId} updated to ${newStatus}`, 'success');
+            renderIncidentsTable();
+        }
+
+        function deleteIncident(incId) {
+            if (confirm(`Are you sure you want to delete incident ${incId}?`)) {
+                const inc = incidents.find(i => i.id === incId);
+                if (inc && inc.assignedTeamId) {
+                    const team = teams.find(t => t.id === inc.assignedTeamId);
+                    if (team) {
+                        team.status = 'Available';
+                        team.assignedTeamId = null;
+                    }
+                }
+                incidents = incidents.filter(i => i.id !== incId);
+                saveToLocalStorage();
+                renderIncidentsTable();
+                showToast(`Incident ${incId} deleted.`, 'success');
+            }
+        }
+
+        function viewIncidentDetails(incId) {
+            const inc = incidents.find(i => i.id === incId);
+            if (!inc) return;
+            const team = teams.find(t => t.id === inc.assignedTeamId);
+
+            const modalContent = document.getElementById('details-modal-content');
+            modalContent.innerHTML = `
+                <div class="space-y-2">
+                    <p><strong class="text-slate-400">Incident ID:</strong> <span class="font-mono text-white">${inc.id}</span></p>
+                    <p><strong class="text-slate-400">Title:</strong> <span class="text-white font-semibold">${inc.title}</span></p>
+                    <p><strong class="text-slate-400">Category:</strong> <span class="text-white">${inc.category}</span></p>
+                    <p><strong class="text-slate-400">Severity:</strong> <span class="text-red-400 font-bold">${inc.severity}</span></p>
+                    <p><strong class="text-slate-400">Description:</strong> <span class="text-slate-200">${inc.description}</span></p>
+                    <p><strong class="text-slate-400">Location:</strong> <span class="text-white">${inc.location}</span> (${inc.lat}, ${inc.lng})</p>
+                    <p><strong class="text-slate-400">People Affected:</strong> <span class="text-white font-bold">${inc.affected}</span></p>
+                    <p><strong class="text-slate-400">Contact:</strong> <span class="text-white">${inc.contact}</span></p>
+                    <p><strong class="text-slate-400">Current Status:</strong> <span class="text-cyan-400 font-bold">${inc.status}</span></p>
+                    <p><strong class="text-slate-400">Assigned Team:</strong> <span class="text-emerald-400">${team ? team.name : 'None'}</span></p>
+                    <p><strong class="text-slate-400">Reported Time:</strong> <span class="text-slate-300">${new Date(inc.timestamp).toLocaleString()}</span></p>
+                </div>
+            `;
+            document.getElementById('details-modal').classList.remove('hidden');
+        }
+
+        function closeDetailsModal() { document.getElementById('details-modal').classList.add('hidden'); }
+
+        /* ==========================================
+           9. ROUND 2 – INTELLIGENT INCIDENT PRIORITIZATION
+           ========================================== */
+        function calculatePriorityScore(inc) {
+            // Severity Weight
+            let sevWeight = inc.severity === 'Critical' ? 100 :
+                            inc.severity === 'High' ? 70 :
+                            inc.severity === 'Medium' ? 40 : 15;
+
+            // Affected Factor (1 point per person affected, capped at 50)
+            let affectedFactor = Math.min(inc.affected * 1.5, 50);
+
+            // Time Elapsed Factor (older unresolved incidents get higher priority bonus)
+            let hoursElapsed = (Date.now() - inc.timestamp) / 3600000;
+            let timeFactor = Math.min(hoursElapsed * 3, 30);
+
+            // Category urgency modifier
+            let catBonus = (inc.category === 'Fire Emergency' || inc.category === 'Building Collapse') ? 20 : 10;
+
+            let totalScore = Math.round(sevWeight + affectedFactor + timeFactor + catBonus);
+            return totalScore;
+        }
+
+        function renderPriorityManagement() {
+            // Calculate scores and sort descending
+            const prioritized = incidents.map(inc => ({
+                ...inc,
+                priorityScore: calculatePriorityScore(inc)
+            })).sort((a, b) => b.priorityScore - a.priorityScore);
+
+            const container = document.getElementById('priority-list-container');
+            if (prioritized.length === 0) {
+                container.innerHTML = `<p class="text-slate-400 italic">No incidents available for prioritization.</p>`;
+                return;
+            }
+
+            container.innerHTML = prioritized.map((inc, index) => {
+                const rankColor = index === 0 ? 'bg-red-600 text-white' : index === 1 ? 'bg-amber-600 text-white' : index === 2 ? 'bg-yellow-600 text-slate-900 font-bold' : 'bg-slate-700 text-slate-300';
+                return `
+                    <div class="bg-slate-800/60 border border-slate-700 rounded-2xl p-5 flex flex-col md:flex-row items-start md:items-center justify-between gap-4 shadow-md">
+                        <div class="flex items-center space-x-4">
+                            <div class="w-12 h-12 rounded-xl flex items-center justify-center font-extrabold text-lg ${rankColor}">
+                                #${index + 1}
+                            </div>
+                            <div>
+                                <div class="flex items-center space-x-2">
+                                    <span class="text-xs font-mono text-slate-400">${inc.id}</span>
+                                    <span class="px-2 py-0.5 rounded text-[10px] font-bold ${inc.severity === 'Critical' ? 'bg-red-500/20 text-red-400 border border-red-500/30' : 'bg-slate-700 text-slate-300'}">${inc.severity}</span>
+                                    <span class="text-xs text-slate-400">• ${inc.category}</span>
+                                </div>
+                                <h3 class="text-base font-bold text-white mt-0.5">${inc.title}</h3>
+                                <p class="text-xs text-slate-400"><i class="fa-solid fa-location-dot text-slate-500 mr-1"></i> ${inc.location} • <strong class="text-slate-300">${inc.affected}</strong> people affected</p>
+                            </div>
+                        </div>
+                        <div class="flex items-center space-x-6 w-full md:w-auto justify-between md:justify-end border-t md:border-t-0 border-slate-700 pt-3 md:pt-0">
+                            <div class="text-right">
+                                <span class="text-[10px] uppercase font-semibold text-slate-400 block">Priority Score</span>
+                                <span class="text-2xl font-black text-cyan-400">${inc.priorityScore}</span>
+                            </div>
+                            <button onclick="switchTab('assignment'); document.getElementById('assignment-incident-select').value='${inc.id}'; onSelectAssignmentIncident();" class="bg-red-600 hover:bg-red-700 text-white text-xs font-semibold px-4 py-2 rounded-lg transition shadow-md shadow-red-600/30">
+                                Assign Best Team
+                            </button>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        /* ==========================================
+           10. EMERGENCY RESPONSE TEAM MANAGEMENT
+           ========================================== */
+        function renderTeamsManagement() {
+            const container = document.getElementById('teams-grid-container');
+            if (teams.length === 0) {
+                container.innerHTML = `<p class="text-slate-400 italic">No response teams registered.</p>`;
+                return;
+            }
+
+            container.innerHTML = teams.map(team => {
+                const statusBadge = team.status === 'Available' ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/40' : 'bg-red-500/20 text-red-400 border border-red-500/40';
+                const assignedInc = incidents.find(i => i.id === team.assignedIncidentId);
+
+                return `
+                    <div class="bg-slate-800/60 border border-slate-700 rounded-2xl p-5 flex flex-col justify-between shadow-md space-y-4">
+                        <div>
+                            <div class="flex items-center justify-between mb-2">
+                                <span class="text-xs font-mono text-slate-400">${team.id}</span>
+                                <span class="px-2.5 py-1 rounded-full text-xs font-bold ${statusBadge}">
+                                    <span class="w-2 h-2 rounded-full inline-block mr-1 ${team.status === 'Available' ? 'bg-emerald-400' : 'bg-red-400'}"></span>
+                                    ${team.status}
+                                </span>
+                            </div>
+                            <h3 class="text-base font-bold text-white">${team.name}</h3>
+                            <p class="text-xs text-slate-400 mt-1 font-medium"><i class="fa-solid fa-shield-halved text-slate-500 mr-1"></i> ${team.category}</p>
+                        </div>
+
+                        <div class="bg-navy-900/60 rounded-xl p-3 text-xs space-y-1 text-slate-300 border border-slate-700/60">
+                            <p><strong class="text-slate-400">Base Coordinates:</strong> ${team.lat.toFixed(4)}, ${team.lng.toFixed(4)}</p>
+                            <p><strong class="text-slate-400">Current Assignment:</strong> <span class="text-cyan-400 font-semibold">${assignedInc ? assignedInc.title : 'None'}</span></p>
+                        </div>
+
+                        <div class="flex items-center justify-between pt-2 border-t border-slate-700/80">
+                            <button onclick="toggleTeamStatus('${team.id}')" class="text-xs font-semibold px-3 py-1.5 rounded-lg border border-slate-700 transition ${team.status === 'Available' ? 'bg-slate-700 hover:bg-slate-600 text-slate-200' : 'bg-emerald-600/20 text-emerald-400 hover:bg-emerald-600 hover:text-white'}">
+                                ${team.status === 'Available' ? 'Mark Busy' : 'Mark Available'}
+                            </button>
+                            <div class="space-x-1">
+                                <button onclick="openEditTeamModal('${team.id}')" title="Edit Team" class="bg-slate-700 hover:bg-slate-600 text-slate-200 p-2 rounded-lg text-xs transition">
+                                    <i class="fa-solid fa-pen"></i>
+                                </button>
+                                <button onclick="deleteTeam('${team.id}')" title="Delete Team" class="bg-red-600/20 hover:bg-red-600 text-red-400 hover:text-white p-2 rounded-lg text-xs transition">
+                                    <i class="fa-solid fa-trash"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function toggleTeamStatus(teamId) {
+            const team = teams.find(t => t.id === teamId);
+            if (!team) return;
+
+            if (team.status === 'Available') {
+                team.status = 'Busy';
+            } else {
+                team.status = 'Available';
+                team.assignedIncidentId = null;
+            }
+            saveToLocalStorage();
+            renderTeamsManagement();
+            showToast(`Team ${team.name} status changed to ${team.status}`, 'info');
+        }
+
+        function openTeamModal() {
+            document.getElementById('team-edit-id').value = '';
+            document.getElementById('team-modal-title').innerHTML = `<i class="fa-solid fa-user-plus text-emerald-400"></i><span>Add Response Team</span>`;
+            document.getElementById('team-form').reset();
+            document.getElementById('team-modal').classList.remove('hidden');
+        }
+
+        function openEditTeamModal(teamId) {
+            const team = teams.find(t => t.id === teamId);
+            if (!team) return;
+            document.getElementById('team-edit-id').value = team.id;
+            document.getElementById('team-modal-title').innerHTML = `<i class="fa-solid fa-pen text-emerald-400"></i><span>Edit Response Team</span>`;
+            document.getElementById('t-name').value = team.name;
+            document.getElementById('t-category').value = team.category;
+            document.getElementById('t-lat').value = team.lat;
+            document.getElementById('t-lng').value = team.lng;
+            document.getElementById('t-status').value = team.status;
+            document.getElementById('team-modal').classList.remove('hidden');
+        }
+
+        function closeTeamModal() { document.getElementById('team-modal').classList.add('hidden'); }
+
+        function handleTeamFormSubmit(e) {
+            e.preventDefault();
+            const editId = document.getElementById('team-edit-id').value;
+            const name = document.getElementById('t-name').value.trim();
+            const category = document.getElementById('t-category').value;
+            const lat = parseFloat(document.getElementById('t-lat').value);
+            const lng = parseFloat(document.getElementById('t-lng').value);
+            const status = document.getElementById('t-status').value;
+
+            if (editId) {
+                const team = teams.find(t => t.id === editId);
+                if (team) {
+                    team.name = name;
+                    team.category = category;
+                    team.lat = lat;
+                    team.lng = lng;
+                    team.status = status;
+                }
+                showToast(`Team ${name} updated successfully.`, 'success');
+            } else {
+                const newTeam = {
+                    id: `TEAM-${Math.floor(10 + Math.random() * 90)}`,
+                    name, category, lat, lng, status, assignedIncidentId: null
+                };
+                teams.push(newTeam);
+                showToast(`New team ${name} registered successfully.`, 'success');
+            }
+
+            saveToLocalStorage();
+            closeTeamModal();
+            renderTeamsManagement();
+        }
+
+        function deleteTeam(teamId) {
+            if (confirm("Are you sure you want to delete this response team?")) {
+                teams = teams.filter(t => t.id !== teamId);
+                saveToLocalStorage();
+                renderTeamsManagement();
+                showToast("Team deleted successfully.", "success");
+            }
+        }
+
+        /* ==========================================
+           11. LOCATION-BASED TEAM ASSIGNMENT & MAP
+           ========================================== */
+        function initAssignmentView() {
+            const selectEl = document.getElementById('assignment-incident-select');
+            const unassigned = incidents.filter(i => i.status !== 'Resolved');
+
+            selectEl.innerHTML = `<option value="" disabled selected>-- Select Incident to Assign --</option>` +
+                unassigned.map(inc => `<option value="${inc.id}">${inc.id}: ${inc.title} (${inc.severity})</option>`).join('');
+
+            // Initialize Leaflet Map if not already created
+            if (!leafletMap) {
+                leafletMap = L.map('leaflet-map').setView([12.9716, 77.5946], 12);
+                L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                    maxZoom: 19,
+                    attribution: '&copy; OpenStreetMap contributors'
+                }).addTo(leafletMap);
+                mapMarkersLayer = L.layerGroup().addTo(leafletMap);
+            } else {
+                setTimeout(() => leafletMap.invalidateSize(), 200);
+            }
+
+            renderMapMarkersAndRoutes();
+        }
+
+        function onSelectAssignmentIncident() {
+            const incId = document.getElementById('assignment-incident-select').value;
+            const inc = incidents.find(i => i.id === incId);
+            const detailsBox = document.getElementById('assignment-details-box');
+            const nearestList = document.getElementById('nearest-teams-list');
+
+            if (!inc) {
+                detailsBox.classList.add('hidden');
+                nearestList.innerHTML = `<p class="text-xs text-slate-400 italic">Select an incident above to calculate distances.</p>`;
+                return;
+            }
+
+            detailsBox.classList.remove('hidden');
+            document.getElementById('assign-card-cat').innerText = inc.category;
+            document.getElementById('assign-card-sev').innerText = inc.severity;
+            document.getElementById('assign-card-loc').innerText = inc.location;
+            document.getElementById('assign-card-coords').innerText = `${inc.lat}, ${inc.lng}`;
+
+            // Calculate Haversine distance for ALL available teams
+            const availableTeams = teams.filter(t => t.status === 'Available');
+
+            if (availableTeams.length === 0) {
+                nearestList.innerHTML = `<p class="text-xs text-red-400 font-semibold">No Available Teams currently! All squads are busy.</p>`;
+                return;
+            }
+
+            const evaluatedTeams = availableTeams.map(t => {
+                const dist = calculateHaversineDistance(inc.lat, inc.lng, t.lat, t.lng);
+                let score = dist;
+                // Category match bonus
+                if (t.category === inc.category) score -= 2; 
+                return { team: t, distance: dist, score };
+            }).sort((a, b) => a.score - b.score);
+
+            nearestList.innerHTML = evaluatedTeams.map((item, idx) => {
+                const isBest = idx === 0;
+                const isCatMatch = item.team.category === inc.category;
+                return `
+                    <div class="bg-navy-900 border ${isBest ? 'border-cyan-500 shadow-md shadow-cyan-500/20' : 'border-slate-700'} rounded-xl p-3 flex items-center justify-between">
+                        <div>
+                            <div class="flex items-center space-x-2">
+                                <span class="text-xs font-bold text-white">${item.team.name}</span>
+                                ${isBest ? '<span class="bg-cyan-500/20 text-cyan-300 text-[10px] px-2 py-0.5 rounded font-bold border border-cyan-500/30">RECOMMENDED</span>' : ''}
+                            </div>
+                            <p class="text-xs text-slate-400 mt-0.5"><i class="fa-solid fa-route text-slate-500 mr-1"></i> Distance: <strong class="text-white">${item.distance.toFixed(2)} km</strong> • ${item.team.category}</p>
+                        </div>
+                        <button onclick="assignTeamToIncident('${item.team.id}', '${inc.id}')" class="bg-emerald-600 hover:bg-emerald-700 text-white text-xs px-3 py-1.5 rounded-lg transition font-semibold">
+                            Assign
+                        </button>
+                    </div>
+                `;
+            }).join('');
+
+            renderMapMarkersAndRoutes(inc);
+        }
+
+        function assignTeamToIncident(teamId, incId) {
+            const team = teams.find(t => t.id === teamId);
+            const inc = incidents.find(i => i.id === incId);
+
+            if (!team || !inc) return;
+
+            if (team.status === 'Busy') {
+                showToast(`Cannot assign team ${team.name} because they are currently busy.`, 'error');
+                return;
+            }
+
+            // Update Team
+            team.status = 'Busy';
+            team.assignedIncidentId = inc.id;
+
+            // Update Incident
+            inc.assignedTeamId = team.id;
+            inc.status = 'In Progress';
+
+            saveToLocalStorage();
+            showToast(`Team ${team.name} successfully dispatched to ${inc.title}!`, 'success');
+
+            // Refresh view
+            initAssignmentView();
+            document.getElementById('assignment-incident-select').value = inc.id;
+            onSelectAssignmentIncident();
+        }
+
+        function renderMapMarkersAndRoutes(selectedIncident = null) {
+            if (!leafletMap || !mapMarkersLayer) return;
+            mapMarkersLayer.clearLayers();
+
+            // Add Incidents Markers
+            incidents.forEach(inc => {
+                if (inc.status === 'Resolved') return;
+                const isSelected = selectedIncident && selectedIncident.id === inc.id;
+                const color = inc.severity === 'Critical' ? '#ef4444' : '#f59e0b';
+                
+                const markerHtml = `<div style="background-color: ${color}; width: ${isSelected ? '20px' : '14px'}; height: ${isSelected ? '20px' : '14px'}; border-radius: 50%; border: 2px solid white; box-shadow: 0 0 10px ${color};"></div>`;
+                const customIcon = L.divIcon({ className: 'custom-div-icon', html: markerHtml, iconSize: [20, 20] });
+
+                const marker = L.marker([inc.lat, inc.lng], { icon: customIcon }).addTo(mapMarkersLayer);
+                marker.bindPopup(`<b>[Incident] ${inc.title}</b><br>Severity: ${inc.severity}<br>Status: ${inc.status}`);
+            });
+
+            // Add Teams Markers
+            teams.forEach(t => {
+                const color = t.status === 'Available' ? '#10b981' : '#64748b';
+                const markerHtml = `<div style="background-color: ${color}; width: 14px; height: 14px; border-radius: 3px; border: 2px solid white;"></div>`;
+                const customIcon = L.divIcon({ className: 'custom-div-icon', html: markerHtml, iconSize: [16, 16] });
+
+                const marker = L.marker([t.lat, t.lng], { icon: customIcon }).addTo(mapMarkersLayer);
+                marker.bindPopup(`<b>[Team] ${t.name}</b><br>Status: ${t.status}<br>Category: ${t.category}`);
+            });
+
+            // If selected incident has an assigned team, draw connecting straight-line route
+            if (selectedIncident && selectedIncident.assignedTeamId) {
+                const assignedTeam = teams.find(t => t.id === selectedIncident.assignedTeamId);
+                if (assignedTeam) {
+                    const polyline = L.polyline([
+                        [assignedTeam.lat, assignedTeam.lng],
+                        [selectedIncident.lat, selectedIncident.lng]
+                    ], { color: '#06b6d4', weight: 4, dashArray: '6, 6' }).addTo(mapMarkersLayer);
+
+                    const dist = calculateHaversineDistance(selectedIncident.lat, selectedIncident.lng, assignedTeam.lat, assignedTeam.lng);
+                    polyline.bindPopup(`<b>Assigned Route Connection</b><br>Team: ${assignedTeam.name}<br>Straight-line Distance: ${dist.toFixed(2)} km`);
+
+                    // Center map between team and incident
+                    leafletMap.fitBounds(polyline.getBounds(), { padding: [50, 50] });
+                }
+            } else if (selectedIncident) {
+                leafletMap.setView([selectedIncident.lat, selectedIncident.lng], 14);
+            }
+        }
+
+        /* ==========================================
+           12. ADVANCED ANALYTICS (Chart.js)
+           ========================================== */
+        function renderAnalyticsCharts() {
+            renderPieChart();
+            renderBarChart();
+            renderLineChart();
+        }
+
+        function renderPieChart() {
+            const ctx = document.getElementById('analytics-pie-chart').getContext('2d');
+            if (chartInstances.pie) chartInstances.pie.destroy();
+
+            const categories = {};
+            incidents.forEach(i => { categories[i.category] = (categories[i.category] || 0) + 1; });
+
+            chartInstances.pie = new Chart(ctx, {
+                type: 'pie',
+                data: {
+                    labels: Object.keys(categories),
+                    datasets: [{
+                        data: Object.values(categories),
+                        backgroundColor: ['#ef4444', '#f59e0b', '#3b82f6', '#06b6d4', '#8b5cf6', '#10b981'],
+                        borderWidth: 0
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { position: 'bottom', labels: { color: '#cbd5e1', font: { size: 12 } } } }
+                }
+            });
+        }
+
+        function renderBarChart() {
+            const ctx = document.getElementById('analytics-bar-chart').getContext('2d');
+            if (chartInstances.bar) chartInstances.bar.destroy();
+
+            const severities = { Critical: 0, High: 0, Medium: 0, Low: 0 };
+            incidents.forEach(i => { if (severities[i.severity] !== undefined) severities[i.severity]++; });
+
+            chartInstances.bar = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: Object.keys(severities),
+                    datasets: [{
+                        label: 'Incidents Count',
+                        data: Object.values(severities),
+                        backgroundColor: ['#ef4444', '#f59e0b', '#eab308', '#3b82f6'],
+                        borderRadius: 6
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: false } },
+                    scales: {
+                        x: { ticks: { color: '#cbd5e1' }, grid: { display: false } },
+                        y: { ticks: { color: '#cbd5e1', stepSize: 1 }, grid: { color: '#334155' } }
+                    }
+                }
+            });
+        }
+
+        function renderLineChart() {
+            const ctx = document.getElementById('analytics-line-chart').getContext('2d');
+            if (chartInstances.line) chartInstances.line.destroy();
+
+            // Group incidents by simulated timeline hours/days
+            chartInstances.line = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: ['6 Hours Ago', '5 Hours Ago', '4 Hours Ago', '3 Hours Ago', '2 Hours Ago', '1 Hour Ago', 'Now'],
+                    datasets: [{
+                        label: 'Cumulative Incidents Reported',
+                        data: [2, 3, 5, 5, 6, 7, incidents.length],
+                        borderColor: '#06b6d4',
+                        backgroundColor: 'rgba(6, 182, 212, 0.1)',
+                        fill: true,
+                        tension: 0.3,
+                        pointBackgroundColor: '#06b6d4'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { labels: { color: '#cbd5e1' } } },
+                    scales: {
+                        x: { ticks: { color: '#cbd5e1' }, grid: { color: '#334155' } },
+                        y: { ticks: { color: '#cbd5e1', stepSize: 2 }, grid: { color: '#334155' } }
+                    }
+                }
+            });
+        }
+
+        /* ==========================================
+           13. INITIAL APP STARTUP
+           ========================================== */
+        function initApp() {
+            switchTab('overview');
+            updateClock();
+        }
+
+        window.onload = initApp;
+    </script>
+</body>
+</html>
